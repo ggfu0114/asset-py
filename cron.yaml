@@ -1,0 +1,4 @@
+cron:
+- description: "Recalculate assets daily"
+  url: /assets/recalculate
+  schedule: every 24 hours
