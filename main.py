@@ -17,6 +17,9 @@ from api import Session
 from api.models import AssetValue, MyAsset, User
 from sqlalchemy.dialects.mysql import insert
 import datetime
+from service.line_notification import send_line_notification
+from collections import defaultdict
+import configparser
 
 app = Flask(__name__)
 
@@ -124,7 +127,7 @@ def calculate_value(propert: dict):
 		value = int(bond_etf_price * propert["amount"])
 	if propert["type"] == "cash":
 		value = propert["amount"]
-	return value
+	return propert["type"], value
 
 
 def upsert_current_value(session, _aid: int, _value: int):
@@ -144,7 +147,17 @@ def upsert_current_value(session, _aid: int, _value: int):
 	finally:
 		session.rollback()
 
-
+def generate_msg_content(assets:dict)->str:
+	summarized_string=''
+	total_asset = 0
+	for asset_type, asset_value in assets.items():
+		summarized_string = f'{asset_type}:{asset_value}\n'
+		total_asset+=asset_value
+		print('asset_value_dict', assets)
+	summarized_string += f'Total Assets:{total_asset}'
+	return summarized_string
+  
+  
 @app.route("/assets/recalculate", methods=["GET"])
 def regular_recalculate_task():
 
@@ -155,9 +168,10 @@ def regular_recalculate_task():
 			u = user.to_dict()
 			assets = session.query(MyAsset).filter(
 				MyAsset.uid == u['uid']).all()
+			asset_value_dict = defaultdict(float)
 			for asset in assets:
 				asset_dict = asset.to_dict()
-				current_value = calculate_value({
+				type, current_value = calculate_value({
 					'type': asset_dict['asset_type'],
 					'code': asset_dict['code'],
 					'amount': asset_dict['amount'],
@@ -165,6 +179,10 @@ def regular_recalculate_task():
 				})
 				print('current_value', current_value)
 				upsert_current_value(session, asset.aid, current_value)
+				asset_value_dict[type] += current_value
+			content = generate_msg_content(asset_value_dict)
+			
+			send_line_notification(user.line_id, content)
 	except Exception as err:
 		print(err)
 	finally:
@@ -178,8 +196,8 @@ def query_value():
 	# This will be replaced with real information in later steps.
 
 	propert = request.get_json()
-	value = calculate_value(propert)
-	return jsonify({"current_value": value})
+	type, value = calculate_value(propert)
+	return jsonify({"current_value": value, "type": type})
 
 
 if __name__ == "__main__":
