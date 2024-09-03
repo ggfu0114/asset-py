@@ -3,7 +3,10 @@
 Dev commands
 
 ```sh
-source venv/bin/activate
+# Active python virtual environment
+source venv/bin/activate 
+
+# Run main entrypoint to enable flask application
 python main.py
 ```
 

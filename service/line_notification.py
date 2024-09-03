@@ -23,11 +23,32 @@ config.read('config.ini')
 
 # Configure Bearer authorization: Bearer
 configuration = linebot.v3.messaging.Configuration(
-    access_token = config['ASSET_CONFIG']['LineAccessToken']
+    access_token=config['ASSET_CONFIG']['LineAccessToken']
 )
 
-def send_line_notification(user_id:str, message:str):
+def build_add_asset_msg(assets: dict) -> str:
+    summarized_string = f"""
+    新的資產已建立
+    股票類型: {'美股' if assets['type']=='US' else '台股'},
+    代碼: {assets['code']},
+    數量: {assets['amount']},
+    價值: {assets['value']}
+    """
+    return summarized_string
+
+def build_asset_summary_msg(assets: dict) -> str:
+    summarized_string = ''
+    total_asset = 0
+    for asset_type, asset_value in assets.items():
+        summarized_string = f'{asset_type}:{asset_value}\n'
+        total_asset += asset_value
+        print('asset_value_dict', assets)
+    summarized_string += f'Total Assets:{total_asset}'
+    return summarized_string
+
+def send_line_notification(user_id: str, message: str):
     if not user_id:
+        print("The user line id is empty.")
         return
     # Enter a context with an instance of the API client
     with linebot.v3.messaging.ApiClient(configuration) as api_client:
@@ -35,11 +56,13 @@ def send_line_notification(user_id:str, message:str):
         api_instance = linebot.v3.messaging.MessagingApi(api_client)
         push_message_request = linebot.v3.messaging.PushMessageRequest(
             to=user_id,
-            messages=[TextMessage(text=message)]) # PushMessageRequest | 
+            messages=[TextMessage(text=message)])  # PushMessageRequest |
         x_line_retry_key = str(uuid.uuid4())
 
         try:
-            api_response = api_instance.push_message(push_message_request,x_line_retry_key=x_line_retry_key)
+            print("Send request to line id:{user_id}")
+            api_response = api_instance.push_message(
+                push_message_request, x_line_retry_key=x_line_retry_key)
             print("The response of MessagingApi->push_message:\n")
             pprint(api_response)
         except Exception as e:
