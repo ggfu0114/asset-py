@@ -1,4 +1,5 @@
 import datetime
+import os
 import requests
 from flask import jsonify
 import pandas as pd
@@ -7,6 +8,7 @@ from typing import Optional
 from typing import Dict
 from bs4 import BeautifulSoup
 import requests
+from flask import abort
 import pandas as pd
 import re
 from dataclasses import dataclass
@@ -20,7 +22,9 @@ import datetime
 from service.line_notification import send_line_notification, build_asset_summary_msg, build_add_asset_msg
 from service.user import get_user
 from collections import defaultdict
-import configparser
+from app_config import app_config
+import jwt 
+from flask import request
 
 app = Flask(__name__)
 
@@ -147,8 +151,23 @@ def upsert_current_value(session, _aid: int, _value: int):
         print(err)
     finally:
         session.rollback()
+        
+        
+def token_decode(token:str)->dict:
+    return jwt.decode(token, app_config['ASSET_CONFIG']['JWT_TOKEN_KEY'], algorithms=['HS256'])
 
-
+def get_request_auth(header_token:str)->dict:
+    try:
+        if os.environ.get('RUN_ENV')=='dev':
+            return {'iss': 'PaulChen', 'exp': 1725604979, 'id': '0', 'name': 'chun-fu chen'}
+        else:
+            data = token_decode(header_token)
+            print("Token decode", data)
+            return data
+    except Exception as exc:
+        print(exc)
+        abort(400)
+    
 @app.route("/assets/recalculate", methods=["GET"])
 def regular_recalculate_task():
 
@@ -186,14 +205,15 @@ def query_value():
     # For the sake of example, use static information to inflate the template.
     # This will be replaced with real information in later steps.
 
+    user = get_request_auth(request.headers.get('Token'))
     propert = request.get_json()
     _, value = calculate_value(propert)
     operation = request.args.get('op', None)
     
-    if operation == 'insert':
+    if operation in ['insert','update']:
         propert['value']=value
-        user = get_user(0)
-        msg = build_add_asset_msg(propert)
+        user = get_user(user['id'])
+        msg = build_add_asset_msg(propert, operation)
         print('msg',msg)
         send_line_notification(user.line_id, msg)
     return jsonify({"current_value": value})
