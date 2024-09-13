@@ -30,14 +30,13 @@ class MyAsset(BaseModel):
     aid = Column('Aid', Integer, primary_key=True)
     uid = Column('Uid', Integer)
     asset_type = Column('AssetType', VARCHAR(64))
-    asset_sub_type = Column('AssetSubType', VARCHAR(64))
     code = Column('Code', VARCHAR(64))
     amount = Column('Amount', FLOAT)
     label = Column('Label', VARCHAR(64))
     market = Column('Market', VARCHAR(64))
 
     _default_fields = [
-        "aid", "uid", "asset_type", "asset_sub_type", "code", "amount", "label", "market"
+        "aid", "uid", "asset_type", "code", "amount", "label", "market"
     ]
     _hidden_fields = []
     _readonly_fields = []

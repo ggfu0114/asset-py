@@ -24,13 +24,17 @@ configuration = linebot.v3.messaging.Configuration(
 
 
 def build_add_asset_msg(assets: dict, op) -> str:
+    """Build line message and send to user."""
+    
+    print("assets", assets)
     title = "💰 新資產已新增" if op == 'insert' else "💰 資產資料更新"
-    summarized_string = f"""
-    {title}
-    - 股票類型: {'美股' if assets['type']=='US' else '台股'}
-    - 代碼: {assets['code']}
-    - 數量: {assets['amount']}
-    - 價值: {assets['value']}
+    summarized_string = \
+f"""
+{title}
+- 股票類型: {'美股' if assets['market']=='US' else '台股'}
+- 代碼: {assets['code']}
+- 數量: {assets['amount']}
+- 價值: {assets['value']}
     """
     return summarized_string
 
@@ -39,9 +43,8 @@ def build_asset_summary_msg(assets: dict) -> str:
     summarized_string = ''
     total_asset = 0
     for asset_type, asset_value in assets.items():
-        summarized_string = f'{asset_type}:{asset_value}\n'
+        summarized_string += f'{asset_type}:{asset_value}\n'
         total_asset += asset_value
-        print('asset_value_dict', assets)
     summarized_string += f'Total Assets:{total_asset}'
     return summarized_string
 
@@ -60,10 +63,9 @@ def send_line_notification(user_id: str, message: str):
         x_line_retry_key = str(uuid.uuid4())
 
         try:
-            print("Send request to line id:{user_id}")
+            print(f"Send request to line id:{user_id}")
             api_response = api_instance.push_message(
                 push_message_request, x_line_retry_key=x_line_retry_key)
-            print("The response of MessagingApi->push_message:\n")
-            pprint(api_response)
+            print(f"The response of Line MessagingApi:{api_response}")
         except Exception as e:
             print("Exception when calling MessagingApi->push_message: %s\n" % e)
